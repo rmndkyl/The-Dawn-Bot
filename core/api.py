@@ -1,5 +1,7 @@
 import asyncio
 import json
+import random
+
 import names
 
 from datetime import datetime, timezone
@@ -169,7 +171,7 @@ class DawnExtensionAPI:
             self.session.cookies.clear()
 
         params = {
-            'appid': 'undefined',
+            'appid': self.account_data.appid,
         }
 
         response = await self.send_request(
@@ -183,12 +185,16 @@ class DawnExtensionAPI:
         response = await self.send_request(
             method="/v1/puzzle/get-puzzle-image",
             request_type="GET",
-            params={"puzzle_id": puzzle_id, "appid": "undefined"},
+            params={"puzzle_id": puzzle_id, "appid": self.account_data.appid},
         )
 
         return response.get("imgBase64")
 
     async def register(self, puzzle_id: str, answer: str) -> dict:
+        params = {
+            'appid': self.account_data.appid,
+        }
+
         json_data = {
             "firstname": names.get_first_name(),
             "lastname": names.get_last_name(),
@@ -196,14 +202,17 @@ class DawnExtensionAPI:
             "mobile": "",
             "password": self.account_data.password,
             "country": "+91",
-            "referralCode": config.referral_code,
+            "referralCode": random.choice(config.referral_codes) if config.referral_codes else "",
             "puzzle_id": puzzle_id,
             "ans": answer,
+            'ismarketing': True,
+            'browserName': 'Chrome',
         }
 
         return await self.send_request(
             method="/v1/puzzle/validate-register",
             json_data=json_data,
+            params=params,
         )
 
     async def keepalive(self) -> dict | str:
@@ -220,11 +229,11 @@ class DawnExtensionAPI:
             "username": self.account_data.email,
             "extensionid": "fpdkjdnhkakefebpekbdhillbhonfjjp",
             "numberoftabs": 0,
-            "_v": "1.0.9",
+            "_v": "1.1.2",
         }
 
         params = {
-            'appid': 'undefined',
+            'appid': self.account_data.appid,
         }
 
         return await self.send_request(
@@ -242,7 +251,7 @@ class DawnExtensionAPI:
         del headers["Berear"]
 
         params = {
-            'appid': 'undefined',
+            'appid': self.account_data.appid,
         }
 
         response = await self.send_request(
@@ -254,6 +263,24 @@ class DawnExtensionAPI:
 
         return response["data"]
 
+
+    async def resend_verify_link(self, puzzle_id: str, answer: str) -> dict:
+        params = {
+            'appid': self.account_data.appid,
+        }
+
+        json_data = {
+            'username': self.account_data.email,
+            'puzzle_id': puzzle_id,
+            'ans': answer,
+        }
+
+        return await self.send_request(
+            method="/v1/user/resendverifylink/v2",
+            json_data=json_data,
+            params=params,
+        )
+
     async def complete_tasks(self, tasks: list[str] = None, delay: int = 1) -> None:
         if not tasks:
             tasks = ["telegramid", "discordid", "twitter_x_id"]
@@ -262,6 +289,10 @@ class DawnExtensionAPI:
         headers["authorization"] = f'Brearer {self.session.headers["Berear"]}'
         headers["content-type"] = "application/json"
         del headers["Berear"]
+
+        params = {
+            'appid': self.account_data.appid,
+        }
 
         for task in tasks:
             json_data = {
@@ -272,6 +303,7 @@ class DawnExtensionAPI:
                 method="/v1/profile/update",
                 json_data=json_data,
                 headers=headers,
+                params=params,
             )
 
             await asyncio.sleep(delay)
@@ -294,15 +326,17 @@ class DawnExtensionAPI:
         )
 
         params = {
-            'appid': 'undefined',
+            'appid': self.account_data.appid,
         }
 
         json_data = {
             "username": self.account_data.email,
             "password": self.account_data.password,
             "logindata": {
-                "_v": "1.0.9",
-                "datetime": formatted_datetime_str,
+                '_v': {
+                    'version': '1.1.2',
+                },
+                'datetime': formatted_datetime_str,
             },
             "puzzle_id": puzzle_id,
             "ans": answer,
